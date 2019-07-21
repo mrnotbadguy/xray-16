@@ -111,8 +111,8 @@ function options_dialog:SetCurrentValues()
 	opt:SetCurrentValues("mm_opt_controls")
 	opt:SaveBackupValues("mm_opt_controls")
 	
-	--opt:SetCurrentValues("mm_opt_controls_adv")
-	--opt:SaveBackupValues("mm_opt_controls_adv")
+	opt:SetCurrentValues("mm_opt_controls_gpad")
+	opt:SaveBackupValues("mm_opt_controls_gpad")
 
 	opt:SetCurrentValues("key_binding")
 	opt:SaveBackupValues("key_binding")
@@ -243,7 +243,7 @@ function options_dialog:OnBtnAccept()
 	opt:SaveValues("mm_opt_gameplay")
 	opt:SaveValues("mm_opt_sound")
 	opt:SaveValues("mm_opt_controls")
-	--opt:SaveValues("mm_opt_controls_adv")
+	opt:SaveValues("mm_opt_controls_gpad")
 	opt:SaveValues("key_binding_gpad")
 
 	if opt:NeedVidRestart() then
@@ -341,7 +341,7 @@ function options_dialog:OnBtnGpadDefault()
 	console:execute			("default_controls")
 
 	local opt				= COptionsManager()
-	opt:SetCurrentValues	("mm_opt_controls")
+	opt:SetCurrentValues	("mm_opt_controls_gpad")
 	opt:SetCurrentValues	("key_binding_gpad")
 end
 

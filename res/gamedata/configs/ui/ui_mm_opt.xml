@@ -791,6 +791,14 @@
     </tab_controls>
 	
 	<tab_controls_gpad>
+		<cap_check_xinputtoggle x="100" y="3" width="135" height="24">
+            <text r="170" g="170" b="170" font="letterica16" align="r" vert_align="c">ui_mm_xinput_toggle</text>
+        </cap_check_xinputtoggle>
+		<check_xinputtoggle x="245" y="2" width="44" height="29">
+	        <texture>ui_inGame2_checkbox</texture>
+            <options_item entry="input_xinput_toggle" group="mm_opt_controls_gpad"/>
+        </check_xinputtoggle>
+	
 		<cap_gamepadsetup x="0" y="65" width="430" height="15">
             <texture a="150">ui_inGame2_servers_list_button</texture>
             <auto_static x="10" y="0" width="135" height="15">

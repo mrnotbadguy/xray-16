@@ -72,6 +72,9 @@
 	<string id="ui_mm_gamepad_setup">
 		<text>Настройка геймпада</text>
 	</string>
+	<string id="ui_mm_xinput_toggle">
+		<text>Только Xbox-совместимые устройства</text>
+	</string>
 	<string id="eng">
 		<text>Английский (English)</text>
 	</string>

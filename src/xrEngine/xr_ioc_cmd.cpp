@@ -917,6 +917,9 @@ void CCC_Register()
     psMouseSens = 0.12f;
     CMD4(CCC_Float, "mouse_sens", &psMouseSens, 0.001f, 0.6f);
 
+    // Gamepad
+    CMD3(CCC_Mask, "input_xinput_toggle", &g_xinput_toggle, 1);
+
     // Camera
     CMD2(CCC_Float, "cam_inert", &psCamInert);
     CMD2(CCC_Float, "cam_slide_inert", &psCamSlideInert);

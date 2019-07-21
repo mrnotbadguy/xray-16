@@ -12,6 +12,9 @@ function opt_controls_gpad:InitControls(x, y, xml, handler)
 	self:SetWndSize(vector2():set(738,416))
 	self:SetAutoDelete(true)
 	
+	xml:InitStatic		("tab_controls_gpad:cap_check_xinputtoggle", self)
+	xml:InitCheck		("tab_controls_gpad:check_xinputtoggle", self)
+	
 	xml:InitFrameLine	("tab_controls_gpad:cap_gamepadsetup", self)
 	xml:InitFrameLine	("tab_controls_gpad:cap_gamepadsetup", self)
 	
