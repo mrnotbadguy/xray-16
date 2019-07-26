@@ -59,6 +59,15 @@ constexpr int ControllerButtonToKey[] =
     XR_CONTROLLER_BUTTON_DPAD_RIGHT
 };
 
+extern xr_vector<SDL_Joystick*> joysticks;
+extern xr_vector<SDL_GameController*> controllers;
+
+extern ENGINE_API xr_vector<xr_token> JoysticksToken;
+extern ENGINE_API xr_vector<xr_token> ControllersToken;
+
+bool GetJoystickDevices();
+bool GetGameControllerDevices();
+
 class ENGINE_API IInputReceiver;
 
 class ENGINE_API CInput
@@ -101,22 +110,18 @@ private:
 
     xr_vector<IInputReceiver*> cbStack;
 
-    xr_vector<SDL_Joystick*> joysticks;
-    xr_vector<SDL_GameController*> controllers;
-
     void MouseUpdate();
     void KeyUpdate();
     void GameControllerUpdate();
+    void JoystickUpdate();
 
-    bool InitJoystick();
+    void InitJoystick();
     void InitGameController();
     void DisplayDevicesList();
 
     InputStatistics stats;
     bool exclusiveInput;
     bool inputGrabbed;
-    bool availableJoystick;
-    bool availableController;
 
 public:
     u32 m_curTime;

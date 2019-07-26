@@ -10,8 +10,11 @@
 CInput* pInput = nullptr;
 IInputReceiver dummyController;
 
-xr_vector<xr_token> JoysticksToken;
-xr_vector<xr_token> ControllersToken;
+ENGINE_API xr_vector<xr_token> JoysticksToken;
+ENGINE_API xr_vector<xr_token> ControllersToken;
+
+xr_vector<SDL_Joystick*> joysticks;
+xr_vector<SDL_GameController*> controllers;
 
 ENGINE_API float psMouseSens = 1.f;
 ENGINE_API float psMouseSensScale = 1.f;
@@ -36,12 +39,49 @@ static void OnErrorDialog(bool before)
         pInput->GrabInput(true);
 }
 
-bool CInput::InitJoystick()
+static void JoysticksClear()
 {
-    if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == 0)
+    if (!joysticks.empty())
     {
-        SDL_Joystick* joystick;
-        int count = SDL_NumJoysticks();
+        for (auto& joystick : joysticks)
+            SDL_JoystickClose(joystick);
+        joysticks.clear();
+    }
+
+    if (!JoysticksToken.empty())
+    {
+        for (auto& token : JoysticksToken)
+            xr_free(token.name);
+        JoysticksToken.clear();
+    }
+}
+
+static void GameControllersClear()
+{
+    if (!controllers.empty())
+    {
+        for (auto& controller : controllers)
+            SDL_GameControllerClose(controller);
+        controllers.clear();
+    }
+
+    if (!ControllersToken.empty())
+    {
+        for (auto& token : ControllersToken)
+            xr_free(token.name);
+        ControllersToken.clear();
+    }
+}
+
+bool GetJoystickDevices()
+{
+    SDL_Joystick* joystick = nullptr;
+
+    JoysticksClear();
+
+    int count = SDL_NumJoysticks();
+    if (count > 0)
+    {
         for (int i = 0; i < count; ++i)
         {
             joystick = SDL_JoystickOpen(i);
@@ -49,37 +89,34 @@ bool CInput::InitJoystick()
             {
                 JoysticksToken.emplace_back(xr_strdup(SDL_JoystickName(joystick)), i);
                 joysticks.emplace_back(joystick);
+
                 continue;
             }
 
             Log("SDL_JoystickOpen failed: ", SDL_GetError());
             return false;
         }
-
-        if (joysticks.empty())
-        {
-            Log("No joysticks available");
-            JoysticksToken.emplace_back(nullptr, -1);
-            return false;
-        }
-
-        availableJoystick = true;
     }
     else
     {
-        Log("Joystick SDL_InitSubSystem failed: ", SDL_GetError());
+        Log("No joystick available");
         return false;
     }
 
+    JoysticksToken.emplace_back(nullptr, -1);
     return true;
 }
 
-void CInput::InitGameController()
+bool GetGameControllerDevices()
 {
-    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0)
+    SDL_GameController* controller = nullptr;
+
+    GameControllersClear();
+
+    int count = SDL_NumJoysticks();
+    if (count > 0)
     {
-        SDL_GameController* controller;
-        int count = SDL_NumJoysticks();
+        int id = 0;
         for (int i = 0; i < count; ++i)
         {
             if (SDL_IsGameController(i))
@@ -87,74 +124,83 @@ void CInput::InitGameController()
                 controller = SDL_GameControllerOpen(i);
                 if (controller)
                 {
-                    ControllersToken.emplace_back(xr_strdup(SDL_GameControllerName(controller)), i);
+                    ControllersToken.emplace_back(xr_strdup(SDL_GameControllerName(controller)), id);
                     controllers.emplace_back(controller);
+                    ++id;
+
                     continue;
                 }
 
                 Log("SDL_GameControllerOpen failed: ", SDL_GetError());
-                return;
+                return false;
             }
         }
-
-        availableController = true;
     }
     else
     {
-        Log("Game Controller SDL_InitSubSystem failed: ", SDL_GetError());
-        return;
+        Log("No game controllers available");
+        return false;
+    }
+
+    ControllersToken.emplace_back(nullptr, -1);
+    return true;
+}
+
+void CInput::InitJoystick()
+{
+    if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == 0)
+    {
+        if (!GetJoystickDevices())
+            return;
+    }
+    else
+    {
+        Log("Joystick SDL_InitSubSystem failed: ", SDL_GetError());
+    }
+}
+
+void CInput::InitGameController()
+{
+    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0)
+    {
+        if (!GetGameControllerDevices())
+            return;
+    }
+    else
+    {
+        Log("SDL_InitSubSystem failed: ", SDL_GetError());
     }
 }
 
 void CInput::DisplayDevicesList()
 {
-    if (availableController && !controllers.empty())
+    if (g_xinput_toggle.test(1))
     {
-        Msg("Available game controllers[%d]:", controllers.size());
-
+        Log("Available game controllers:");
         for (auto& token : ControllersToken)
             if (token.name)
-                Log(token.name);
+                Msg("%d. %s", token.id, token.name);
     }
     else
-        Log("No game controllers available");
-
-    if (joysticks.size() > controllers.size())
     {
-        Msg("Available joysticks[%d]:", joysticks.size() - controllers.size());
-
-        size_t it = 0;
+        Log("Available joysticks:");
         for (auto& token : JoysticksToken)
-        {
-            if (it <= ControllersToken.size())
-            {
-                if (token.id == ControllersToken[it].id)
-                {
-                    ++it;
-                    continue;
-                }
-            }
-
             if (token.name)
-                Log(token.name);
-        }
+                Msg("%d. %s", token.id, token.name);
     }
-
-    ControllersToken.emplace_back(nullptr, -1);
-    JoysticksToken.emplace_back(nullptr, -1);
 }
 
-CInput::CInput(const bool exclusive): availableJoystick(false), availableController(false)
+CInput::CInput(const bool exclusive)
 {
     exclusiveInput = exclusive;
 
     Log("Starting INPUT device...");
 
-    if (CInput::InitJoystick())
-    {
+    if (g_xinput_toggle.test(1))
         CInput::InitGameController();
-        CInput::DisplayDevicesList();
-    }
+    else
+        CInput::InitJoystick();
+    CInput::DisplayDevicesList();
 
     m_mouseDelta = 25;
 
@@ -180,19 +226,8 @@ CInput::~CInput()
 {
     GrabInput(false);
 
-    for (auto& joystick : joysticks)
-        SDL_JoystickClose(joystick);
-
-    for (auto& controller : controllers)
-        SDL_GameControllerClose(controller);
-
-    for (auto& token : JoysticksToken)
-        xr_free(token.name);
-    JoysticksToken.clear();
-
-    for (auto& token : ControllersToken)
-        xr_free(token.name);
-    ControllersToken.clear();
+    JoysticksClear();
+    GameControllersClear();
 
     Device.seqFrame.Remove(this);
     Device.seqAppDeactivate.Remove(this);
@@ -327,9 +362,8 @@ void CInput::GameControllerUpdate()
 
         switch (event.type)
         {
-        case SDL_CONTROLLERAXISMOTION:
-            Log("Controller do axis motion");
-            
+        case SDL_CONTROLLERAXISMOTION: 
+            Msg("Current controller device on event: %d", event.cdevice.which);
             break;
         case SDL_CONTROLLERBUTTONDOWN:
             controllerState[event.cbutton.button] = true;
@@ -340,7 +374,13 @@ void CInput::GameControllerUpdate()
             cbStack.back()->IR_OnControllerRelease(event.cbutton.button);
             break;
         case SDL_CONTROLLERDEVICEADDED:
+            GetGameControllerDevices();
+            DisplayDevicesList();
+            break;
         case SDL_CONTROLLERDEVICEREMOVED:
+            GetGameControllerDevices();
+            DisplayDevicesList();
+            break;
         case SDL_CONTROLLERDEVICEREMAPPED:
             break;
         }
@@ -349,6 +389,38 @@ void CInput::GameControllerUpdate()
     for (int i = 0; i < COUNT_CONTROLLER_BUTTONS; ++i)
         if (controllerState[i] && controllerPrev[i])
             cbStack.back()->IR_OnKeyboardHold(ControllerButtonToKey[i]);
+}
+
+void CInput::JoystickUpdate()
+{
+    SDL_PumpEvents();
+
+    SDL_Event events[MAX_CONTROLLER_EVENTS];
+    const auto count =
+        SDL_PeepEvents(events, MAX_CONTROLLER_EVENTS, SDL_GETEVENT, SDL_JOYAXISMOTION, SDL_JOYDEVICEREMOVED);
+
+    for (int i = 0; i < count; ++i)
+    {
+        const SDL_Event event = events[i];
+
+        switch (event.type)
+        {
+        case SDL_JOYAXISMOTION:
+            Msg("Current joystick device on event: %d", event.jdevice.which);
+            break;
+        case SDL_JOYBALLMOTION:
+        case SDL_JOYBUTTONDOWN:
+        case SDL_JOYBUTTONUP: break;
+        case SDL_JOYDEVICEADDED:
+            GetJoystickDevices();
+            DisplayDevicesList();
+            break;
+        case SDL_JOYDEVICEREMOVED:
+            GetJoystickDevices();
+            DisplayDevicesList();
+            break;
+        }
+    }
 }
 
 bool KbdKeyToButtonName(const int dik, xr_string& name)
@@ -519,8 +591,10 @@ void CInput::OnFrame(void)
         KeyUpdate();
         MouseUpdate();
 
-        if (availableController)
+        if (g_xinput_toggle.test(1))
             GameControllerUpdate();
+        else
+            JoystickUpdate();
     }
 
     stats.FrameTime.End();
