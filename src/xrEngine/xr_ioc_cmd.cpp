@@ -777,6 +777,36 @@ public:
     }
 };
 
+class CCC_InputDeviceList : public IConsole_Command
+{
+public:
+    CCC_InputDeviceList(pcstr name) : IConsole_Command(name) { bEmptyArgsHandled = true; }
+
+    void Execute(pcstr args) override
+    {
+        xr_vector<xr_token> temp;
+
+        Msg("Xbox-compatible devices mode: %s", g_xinput_toggle.test(1) ? "on" : "off");
+        if (g_xinput_toggle.test(1))
+            temp = ControllersToken;
+        else
+            temp = JoysticksToken;
+
+        Log("Available gamepads list:");
+        for (auto& t : temp)
+        {
+            if (t.name)
+                Msg("%d. %s", t.id, t.name);
+        }
+        temp.clear();
+    }
+
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, sizeof(I), "show game controllers and joysticks list");
+    }
+};
+
 ENGINE_API float g_fov = 67.5f;
 ENGINE_API float psHUD_FOV = 0.45f;
 
@@ -919,6 +949,7 @@ void CCC_Register()
 
     // Gamepad
     CMD3(CCC_Mask, "input_xinput_toggle", &g_xinput_toggle, 1);
+    CMD1(CCC_InputDeviceList, "input_device_list");
 
     // Camera
     CMD2(CCC_Float, "cam_inert", &psCamInert);
